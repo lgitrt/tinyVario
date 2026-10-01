@@ -1,0 +1,22 @@
+# Author: Luca Obwegs
+#
+# Builds and runs the host-side unit tests for the pure algorithm modules
+# (madgwick.c, kalman_vz.c) on every push and pull request. These tests link
+# the real firmware source directly, so a green run means the sensor-fusion
+# math behaves as documented without needing the STM32 target or hardware.
+name: Unit Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  host-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and run tests
+        run: make -C tests test
