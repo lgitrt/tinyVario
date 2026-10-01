@@ -25,10 +25,23 @@ beta = param.madgwick.beta;
 zeta = param.madgwick.zeta;   
 dt   = param.madgwick.dt;     
 
-%% Normalise accelerometer
+% Accel-magnitude gate: skip the gradient correction (fall back to pure
+% gyro integration) whenever |a| deviates from g by more than
+% accel_gate_frac*g — protects attitude estimation during kinematic
+% acceleration spikes (turns, turbulence, thermalling). Mirrors
+% MADGWICK_ACCEL_GATE_FRAC in Core/Inc/filter_tuning.h and the identical
+% gate implemented in Core/Src/madgwick.c. Defaults to the firmware value
+% if param.madgwick.accel_gate_frac is not supplied, so existing callers
+% (e.g. param_init.m) keep working without modification.
+if isfield(param.madgwick, 'accel_gate_frac')
+    gate_frac = param.madgwick.accel_gate_frac;
+else
+    gate_frac = 0.25;
+end
+g_ref  = param.simul.g;
 a_norm = sqrt(ax*ax + ay*ay + az*az);
-if a_norm < 1e-6
-    [q_est, az_world, euler_out] = gyro_only(q_est, gx, gy, gz, gyro_bias, dt);
+if a_norm < 1e-6 || a_norm < g_ref*(1-gate_frac) || a_norm > g_ref*(1+gate_frac)
+    [q_est, az_world, euler_out] = gyro_only(q_est, ax, ay, az, gx, gy, gz, gyro_bias, dt);
     q_out = q_est;
     return;
 end
@@ -93,7 +106,12 @@ euler_out = q2euler(q_est);
 q_out     = q_est;
 end
 
-function [q_new, az_world, euler_out] = gyro_only(q, gx, gy, gz, bias, dt)
+function [q_new, az_world, euler_out] = gyro_only(q, ax, ay, az, gx, gy, gz, bias, dt)
+    % Gyro-only propagation, used while the accelerometer is gated out.
+    % az_world is still reported from the (possibly off-1g) instantaneous
+    % accel reading rotated through the gyro-propagated attitude — this
+    % matches Core/Src/madgwick.c, and is more accurate during real
+    % kinematic acceleration than assuming a static 1g reading.
     gx_c = gx - bias(1); gy_c = gy - bias(2); gz_c = gz - bias(3);
     w=q(1); x=q(2); y=q(3); z=q(4);
     qw = w + dt*0.5*(-x*gx_c - y*gy_c - z*gz_c);
@@ -101,9 +119,12 @@ function [q_new, az_world, euler_out] = gyro_only(q, gx, gy, gz, bias, dt)
     qy = y + dt*0.5*( w*gy_c - x*gz_c + z*gx_c);
     qz = z + dt*0.5*( w*gz_c + x*gy_c - y*gx_c);
     q_new = [qw, qx, qy, qz] / norm([qw, qx, qy, qz]);
-    
-    R33 = q_new(1)^2 - q_new(2)^2 - q_new(3)^2 + q_new(4)^2;
-    az_world = R33 * (-9.80665); 
+
+    w=q_new(1); x=q_new(2); y=q_new(3); z=q_new(4);
+    R31 = 2.0*(x*z - w*y);
+    R32 = 2.0*(y*z + w*x);
+    R33 = w*w - x*x - y*y + z*z;
+    az_world = R31*ax + R32*ay + R33*az;
     euler_out = q2euler(q_new);
 end
 
