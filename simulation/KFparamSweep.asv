@@ -1,0 +1,19 @@
+
+%% loop stars here
+
+% define parameter
+
+% load param file
+clear; % clear everything apart from data that has to be saved
+param_init;
+%load trajectory once
+trajectory_paraglider;
+
+% sim outputs:
+alt_error = out.altError;
+vz_error = out.vzError;
+
+%%loop ends here
+
+%c
+

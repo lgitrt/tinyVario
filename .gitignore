@@ -1,0 +1,18 @@
+# Build output
+Debug/
+Release/
+
+# STM32CubeIDE / Eclipse workspace metadata (local to each machine)
+.metadata/
+
+# Simulink code-generation cache (regenerated automatically on simulation/build)
+slprj/
+
+# Large CAD exports not suited to plain git (keep locally / share via LFS or a release asset)
+*.STEP
+*.step
+
+# OS / editor cruft
+*.swp
+.DS_Store
+Thumbs.db
