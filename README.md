@@ -161,6 +161,47 @@ capture well. This is reported as-is rather than cherry-picked, since an
 accurate account of a design's actual tradeoffs is more useful than a
 flattering but misleading one.
 
+### Simulated flight model
+
+Both validations fly the same synthetic ~20-minute trajectory, generated
+by [`matlab/trajectory_paraglider.m`](matlab/trajectory_paraglider.m), so
+the comparison above is apples-to-apples. The script builds a physically
+plausible flight rather than a simple sine wave, covering:
+
+- **19 scripted flight phases** — launch, wide thermals, glides, a
+  banked turn, three "tight" high-bank thermals, a weak thermal,
+  approach and a landing flare — each with its own target airspeed
+  (from brake/trim/speedbar position) and stall-speed limiting in
+  banked turns.
+- **Wind and gusts**: an Ornstein-Uhlenbeck gust process layered on a
+  mean wind field with altitude shear (power-law profile) and
+  first-order lag, so the wind the glider feels responds realistically
+  to altitude and gust timing rather than being constant.
+- **Thermal structure**: a Gaussian radial lift profile inside each
+  thermal phase, so climb rate depends on where in the turn the glider
+  actually is, not just a flat per-phase constant.
+- **Wing collapse events**: randomly-timed (Poisson arrival) transient
+  disturbances to bank angle and sink rate during the tight-thermal
+  phases, mimicking asymmetric collapses in rough air.
+- **Coupled rigid-body kinematics**: coordinated-turn heading rates,
+  airspeed/bank/sink-rate-coupled pitch, and a full Euler-rate →
+  body-rate transform, so the simulated gyro and accelerometer outputs
+  are internally consistent (cross-checked at runtime — see the
+  `az_world ground truth validation error` printout, which should be
+  within machine precision).
+- **Sensor-realistic noise**: IMU white noise, slowly-varying bias
+  instability (random walk), high-frequency vibration, low-frequency
+  turbulence, and a temperature-dependent z-axis bias term; barometer
+  noise is injected in the pressure domain and inverted back through
+  the nonlinear pressure–altitude relationship, sampled at the real
+  8 Hz baro rate with zero-order hold up to IMU rate — not simply
+  added as Gaussian noise on altitude.
+
+![Trajectory overview](results/trajectory_overview.png)
+
+*(Altitude and ground track for the full flight, plus roll/pitch and raw
+IMU acceleration, generated directly by `trajectory_paraglider.m`.)*
+
 ### Reproducing these results
 
 ```sh
@@ -168,12 +209,13 @@ cd matlab
 matlab -batch "validate_filters"   # no toolboxes beyond base MATLAB required
 ```
 
-This regenerates the three `results/*_standalone.png` plots and prints
-the RMSE/max-error table above. The Simulink-derived plots (without the
-`_standalone` suffix) come from a separate, locally-only Simscape
-Multibody model built around the same `fcn_madgwick.m`/`fcn_kalman_vz.m`
-reference functions, kept out of the repository because of its large
-third-party CAD assets; it is not required to validate the filter math.
+This regenerates the three `results/*_standalone.png` plots, the
+trajectory overview above, and prints the RMSE/max-error table shown
+earlier. The Simulink-derived plots (without the `_standalone` suffix)
+come from a separate, locally-only Simscape Multibody model built around
+the same `fcn_madgwick.m`/`fcn_kalman_vz.m` reference functions, kept out
+of the repository because of its large third-party CAD assets; it is not
+required to validate the filter math.
 
 ## Testing
 

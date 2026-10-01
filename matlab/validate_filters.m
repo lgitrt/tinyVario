@@ -21,8 +21,8 @@
 %   >> validate_filters
 %
 % OUTPUT
-%   Prints RMSE/max-error statistics to the console and saves three plots
-%   to ../results/.
+%   Prints RMSE/max-error statistics to the console and saves the
+%   trajectory overview plus three filter-comparison plots to ../results/.
 
 clc; close all;
 here = fileparts(mfilename('fullpath'));
@@ -48,6 +48,16 @@ param_init;   % defines `param`, and (via its final line) also runs
 here = fileparts(mfilename('fullpath'));
 results_dir = fullfile(here, '..', 'results');
 if ~exist(results_dir, 'dir'), mkdir(results_dir); end
+
+% trajectory_paraglider.m (called above) already produced a diagnostic
+% "Paraglider Trajectory Overview" figure (altitude/baro, attitude, IMU
+% accel, ground track) — publish it alongside the filter-comparison
+% plots below, since it's the clearest single view of the whole
+% simulated flight used to generate every other plot in this script.
+traj_fig = findobj('Type','figure','Name','Paraglider Trajectory Overview');
+if ~isempty(traj_fig)
+    exportgraphics(traj_fig(1), fullfile(results_dir, 'trajectory_overview.png'), 'Resolution', 150);
+end
 
 dt = param.dt_imu;
 N  = numel(t);  %#ok<USENS> -- t, ts_* come from trajectory_paraglider
@@ -123,28 +133,60 @@ fprintf('Vz max|err|       3-state KF + Madgwick : %.4f m/s\n', maxabs(vzErr_kf)
 % convergence transient from the identity initial attitude guess);
 % RMSE/max-error stats above already exclude a longer 10 s warm-up.
 plot_start = round(1 / dt);
-fig1 = figure('Name','az_world estimate', 'Color','w', 'Position',[100 100 900 400]);
-plot(t(plot_start:end), ts_az_world_true.Data(plot_start:end), 'k', 'LineWidth', 1.2); hold on;
-plot(t(plot_start:end), az_world_est(plot_start:end), 'r--', 'LineWidth', 0.9);
-grid on; xlabel('Time [s]'); ylabel('a_{z,world} [m/s^2]');
-legend('Ground truth','Madgwick estimate','Location','best');
-title('Madgwick AHRS — World-Frame Vertical Specific Force');
-exportgraphics(fig1, fullfile(results_dir, 'az_world_estimate_standalone.png'), 'Resolution', 150);
+idx = plot_start:N;
 
-fig2 = figure('Name','Altitude error', 'Color','w', 'Position',[100 100 900 400]);
-plot(t, altErr_baro, 'Color',[0.6 0.6 0.6], 'LineWidth', 0.9); hold on;
-plot(t, altErr_kf, 'b', 'LineWidth', 0.9);
-grid on; xlabel('Time [s]'); ylabel('Altitude error [m]');
-legend('Baro-only KF','3-state KF + Madgwick','Location','best');
-title('Altitude Estimation Error vs. Ground Truth');
-exportgraphics(fig2, fullfile(results_dir, 'altitude_error_comparison_standalone.png'), 'Resolution', 150);
+% A 60 s window inside the "tight_thermal1" phase (see trajectory_paraglider.m
+% phase table) — the most dynamically demanding segment of the flight
+% (45° bank, wing collapses), used as a zoomed-in detail view below the
+% full-flight overview so the (very similar) filter traces are easy to
+% tell apart instead of fully overlapping at full-flight zoom level.
+zoom_t0 = 480; zoom_t1 = 540;
 
-fig3 = figure('Name','Vertical speed error', 'Color','w', 'Position',[100 100 900 400]);
-plot(t, vzErr_baro, 'Color',[0.6 0.6 0.6], 'LineWidth', 0.9); hold on;
-plot(t, vzErr_kf, 'b', 'LineWidth', 0.9);
-grid on; xlabel('Time [s]'); ylabel('Vertical speed error [m/s]');
-legend('Baro-only KF','3-state KF + Madgwick','Location','best');
-title('Vertical Speed Estimation Error vs. Ground Truth');
-exportgraphics(fig3, fullfile(results_dir, 'vertical_speed_error_comparison_standalone.png'), 'Resolution', 150);
+plot_compare(t(idx), ts_az_world_true.Data(idx), 'Ground truth', ...
+             az_world_est(idx), 'Madgwick estimate', ...
+             'a_{z,world} [m/s^2]', 'Madgwick AHRS — World-Frame Vertical Specific Force', ...
+             zoom_t0, zoom_t1, fullfile(results_dir, 'az_world_estimate_standalone.png'));
+
+plot_compare(t, altErr_baro, 'Baro-only KF', ...
+             altErr_kf, '3-state KF + Madgwick', ...
+             'Altitude error [m]', 'Altitude Estimation Error vs. Ground Truth', ...
+             zoom_t0, zoom_t1, fullfile(results_dir, 'altitude_error_comparison_standalone.png'));
+
+plot_compare(t, vzErr_baro, 'Baro-only KF', ...
+             vzErr_kf, '3-state KF + Madgwick', ...
+             'Vertical speed error [m/s]', 'Vertical Speed Estimation Error vs. Ground Truth', ...
+             zoom_t0, zoom_t1, fullfile(results_dir, 'vertical_speed_error_comparison_standalone.png'));
 
 fprintf('\nSaved plots to %s\n', results_dir);
+
+%% =========================================================
+%  LOCAL FUNCTIONS
+% ==========================================================
+function plot_compare(t, sigA, labelA, sigB, labelB, ylab, ttl, zoom_t0, zoom_t1, filename)
+%PLOT_COMPARE  Two-panel figure: full-flight overview (top) + zoomed
+%detail window (bottom). Both traces are drawn semi-transparent with
+%distinct colors/line styles so that near-identical, heavily-overlapping
+%lines (as is the case for the baro-only vs. 3-state KF comparisons
+%below) both stay visible instead of one fully hiding the other.
+colorA = [0.35 0.35 0.35];   % dark gray, solid
+colorB = [0.00 0.30 0.85];   % blue, dashed
+fig = figure('Color','w', 'Position',[100 100 950 650]);
+
+subplot(2,1,1);
+hA = plot(t, sigA, 'Color', colorA, 'LineWidth', 1.4); hA.Color(4) = 0.55; hold on;
+hB = plot(t, sigB, '--', 'Color', colorB, 'LineWidth', 1.1); hB.Color(4) = 0.85;
+grid on; xlabel('Time [s]'); ylabel(ylab);
+legend(labelA, labelB, 'Location','best');
+title(ttl);
+xline(zoom_t0, ':', 'Color', [0.8 0 0], 'HandleVisibility','off');
+xline(zoom_t1, ':', 'Color', [0.8 0 0], 'HandleVisibility','off');
+
+subplot(2,1,2);
+zoom_mask = t >= zoom_t0 & t <= zoom_t1;
+hA2 = plot(t(zoom_mask), sigA(zoom_mask), 'Color', colorA, 'LineWidth', 1.6); hA2.Color(4) = 0.6; hold on;
+hB2 = plot(t(zoom_mask), sigB(zoom_mask), '--', 'Color', colorB, 'LineWidth', 1.3); hB2.Color(4) = 0.9;
+grid on; xlabel('Time [s]'); ylabel(ylab);
+title(sprintf('Zoomed detail: t = %g-%g s (tight-thermal phase)', zoom_t0, zoom_t1));
+
+exportgraphics(fig, filename, 'Resolution', 150);
+end
