@@ -8,6 +8,11 @@ Release/
 # Simulink code-generation cache (regenerated automatically on simulation/build)
 slprj/
 
+# Local Simulink/Simscape simulation workspace: large CAD assets, model binaries,
+# and scratch/exploratory scripts. The reproducible, pushable MATLAB validation
+# lives in matlab/ instead — see results/ for the published plots it produces.
+simulation/
+
 # Large CAD exports not suited to plain git (keep locally / share via LFS or a release asset)
 *.STEP
 *.step
