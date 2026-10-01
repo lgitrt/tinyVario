@@ -1,4 +1,4 @@
-# tinyVario (LiftSense Mini)
+# tinyVario
 
 **The smallest variometer ever built — 16 × 16 × 13 mm.**
 
@@ -202,10 +202,10 @@ and the provided linker script, `STM32L031G6UX_FLASH.ld`).
 
 1. Open the project in [STM32CubeIDE](https://www.st.com/en/development-tools/stm32cubeide.html).
 2. Build the `Debug` or `Release` configuration.
-3. Flash via ST-Link/SWD (`LiftSenseMiniV3 Debug.launch` is provided for
+3. Flash via ST-Link/SWD (`tinyVario Debug.launch` is provided for
    debugging directly from CubeIDE).
 
-The `.ioc` file (`LiftSenseMiniV3.ioc`) can be reopened in STM32CubeMX to
+The `.ioc` file (`tinyVario.ioc`) can be reopened in STM32CubeMX to
 regenerate peripheral initialization code; all application logic lives
 outside the generated `USER CODE` boundaries and is untouched by
 regeneration.
