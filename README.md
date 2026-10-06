@@ -1,6 +1,6 @@
 # tinyVario
 
-**The smallest variometer ever built — 16 × 16 × 13 mm.**
+**A miniature variometer built from scratch — 16 × 16 × 13 mm.**
 
 tinyVario is a complete, from-scratch embedded firmware and electronics
 project for a paragliding/hang-gliding variometer: a device that senses
@@ -18,10 +18,9 @@ fingertip.
 
 ## Why this project
 
-Commercial variometers are bulky, expensive, and power-hungry. This project
-set out to answer a narrower engineering question: how small and
+This project set out to answer an engineering question: how small and
 power-efficient can a flight-instrument-grade sensor fusion system be made
-while still running reliably on a cheap 8-bit-class microcontroller with
+while still running reliably on a low-power 32-bit microcontroller with
 8 KB of RAM? The result is a complete sensor-fusion pipeline — attitude
 estimation, Kalman filtering, and audio feedback — running in real time on
 a low-power Cortex-M0+ core, with a custom PCB small enough to disappear
@@ -32,8 +31,9 @@ into a harness strap.
 - **Sensor fusion pipeline**: a Madgwick AHRS attitude filter feeds a
   dedicated Kalman filter (altitude / vertical speed / accelerometer bias)
   to turn noisy IMU and barometer readings into stable, responsive audio
-  feedback — all in fixed real-time budget on a Cortex-M0+ with no FPU
-  hardware division.
+  feedback on a Cortex-M0+ without an FPU or hardware division. The IMU
+  update period is about 38.5 ms; measured execution time and worst-case
+  deadline evidence are not yet published.
 - **Offline model-based design**: the filters were first developed and
   tuned in MATLAB/Simulink against simulated flight trajectories, then
   translated to hand-optimized C for the target. The reference MATLAB
@@ -45,8 +45,8 @@ into a harness strap.
 - **Aggressive power management**: the MCU spends almost all of its time in
   `SLEEP`/`STANDBY` mode between IMU interrupts, with full sensor
   power-down, a model-based battery state-of-charge estimate, and a
-  hardware independent watchdog (IWDG) that guarantees recovery from many
-  firmware stalls.
+  hardware independent watchdog (IWDG) intended to reset the MCU if the
+  firmware stops refreshing it; this is not a safety guarantee.
 - **Robust I2C/DMA sensor pipeline**: non-blocking DMA sensor reads, a
   stall watchdog that detects and recovers a wedged I2C bus without a full
   reboot, and graceful degradation (visible error patterns on the status
@@ -133,7 +133,7 @@ model runs were made:
 
 - A full nonlinear 6-DOF Simulink/Simscape Multibody model (not published
   here — the model and its CAD assets are kept out of the repository, see
-  [Reproducing these results](#reproducing-these-results) below).
+  [Reproducing the reference-model results](#reproducing-the-reference-model-results) below).
 - [`matlab/validate_filters.m`](matlab/validate_filters.m): a toolbox-free
   MATLAB script anyone can run from a clone, calling the exact reference
   functions in `Core/Src/matlab_functions/` directly — no Simulink
