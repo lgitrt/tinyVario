@@ -164,7 +164,7 @@ void Process_Vario_Math(void) {
     /* ----------------------------------------------------------------
      * Madgwick AHRS + Kalman vertical-speed filter
      * IMU data: accel in mg (fixed-point), gyro in mdps (fixed-point)
-     * Both filters run at IMU rate (52 Hz); baro update gated by baro_new.
+     * Both filters run at the configured 26 Hz IMU rate; baro updates are gated by baro_new.
      * ---------------------------------------------------------------- */
     {
         static int32_t  p_cached_mk   = 0;

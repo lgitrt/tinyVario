@@ -122,7 +122,7 @@
  * ↓ more tolerant of tiny pressure noise; less aggressive at rest */
 #define ZUPT_ALT_WINDOW_CM        2
 
-/* IMU sample count for the ZUPT detection window (≈ 0.5 s at 52 Hz).
+/* IMU sample count for the ZUPT detection window (≈ 1.23 s at 26 Hz).
  * A slightly longer window makes the stationary check more robust before zeroing.
  * ↑ more reliable stationary detection; slower to clear after landing
  * ↓ faster reset; more likely to false-zero in short pauses */
@@ -138,7 +138,7 @@
 
 /* After a valid stationary event, hold zero-velocity for a short burst of samples
  * to prevent the filter from immediately drifting back negative on a tiny sensor offset.
- * At 52 Hz, 12 samples ≈ 230 ms. */
+ * At 26 Hz, 12 samples ≈ 462 ms. */
 #define ZUPT_HOLD_SAMPLES         12
 
 

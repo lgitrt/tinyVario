@@ -52,7 +52,8 @@ typedef enum {
     ERR_TIM2_INIT,
     ERR_TIM21_INIT,
     ERR_BARO_SPL06,
-    ERR_IMU_LSM6DS3
+    ERR_IMU_LSM6DS3,
+    ERR_EEPROM_STORAGE
 } SystemError_t;
 extern volatile SystemError_t g_system_error;
 /* USER CODE END EC */

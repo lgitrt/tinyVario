@@ -26,14 +26,11 @@ void Set_Volume(uint8_t level) {
 }
 
 uint8_t Load_Volume(void) {
-    uint8_t v = *(__IO uint8_t*)EEPROM_VOLUME_ADDR;
-    return (v >= 1 && v <= 3) ? v : 3;
+    return EepromSettings_LoadVolume();
 }
 
-void Save_Volume(uint8_t vol) {
-    HAL_FLASHEx_DATAEEPROM_Unlock();
-    HAL_FLASHEx_DATAEEPROM_Program(FLASH_TYPEPROGRAMDATA_BYTE, EEPROM_VOLUME_ADDR, (uint32_t)vol);
-    HAL_FLASHEx_DATAEEPROM_Lock();
+EepromSettingsStatus_t Save_Volume(uint8_t vol) {
+    return EepromSettings_SaveVolume(vol);
 }
 
 void Set_Buzzer_Frequency(uint32_t frequency) {

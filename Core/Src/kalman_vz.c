@@ -4,7 +4,8 @@
  * Author: Luca Obwegs
  *
  * Direct C translation of fcn_kalman_vz.m.
- * All matrix constants pre-computed from param_init.m at dt = 1/52 s.
+ * Production matrix constants are pre-computed for dt = 1/26 s; the
+ * separate MATLAB development reference uses 52 Hz tuning.
  *
  * State-transition  F = [[1, dt, -dt^2/2],
  *                        [0,  1,      -dt],

@@ -313,7 +313,9 @@ int main(void)
               /* Short press: cycle volume 1 -> 2 -> 3 -> 1 */
               g_volume = (g_volume % 3) + 1;
               Set_Volume(g_volume);
-              Save_Volume(g_volume);
+              if (Save_Volume(g_volume) != EEPROM_SETTINGS_OK) {
+                HALT_WITH_ERROR(ERR_EEPROM_STORAGE);
+              }
               Display_Volume_LED(g_volume);
               last_imu_sample_tick = HAL_GetTick(); // prevent stall watchdog after the 1 s block
             }

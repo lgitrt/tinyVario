@@ -1,9 +1,8 @@
 # Author: Luca Obwegs
 #
-# Builds and runs the host-side unit tests for the pure algorithm modules
-# (madgwick.c, kalman_vz.c) on every push and pull request. These tests link
-# the real firmware source directly, so a green run means the sensor-fusion
-# math behaves as documented without needing the STM32 target or hardware.
+# Builds and runs the host-side tests for the sensor-fusion algorithms and
+# EEPROM settings storage on every push and pull request. The tests link
+# production C sources and need neither the STM32 target nor hardware.
 name: Unit Tests
 
 on:

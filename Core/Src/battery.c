@@ -16,7 +16,7 @@ extern ADC_HandleTypeDef hadc;
 extern I2C_HandleTypeDef hi2c1;
 
 static uint32_t battery_last_mv = 0;
-static float mah_consumed_est = 0.0f;
+static float mah_consumed_model = 0.0f;
 static uint32_t last_mah_update_ms = 0;
 static uint8_t battery_was_full_and_charging = 0;
 
@@ -152,41 +152,38 @@ uint8_t Battery_Get_SOC_From_Voltage(uint32_t mv, int32_t temp_c) {
 }
 
 float Battery_Get_MAh_Consumed(void) {
-    return mah_consumed_est;
+    return mah_consumed_model;
 }
 
 void Battery_Load_State_From_EEPROM(void) {
     /* Battery percentage must always come from the current voltage reading, never
-       from a stale stored SOC value. Only restore the consumed mAh estimate. */
-    uint16_t saved_mah_q10 = (uint16_t)(*(__IO uint8_t *)(EEPROM_BATTERY_MAH_ADDR) |
-                                        ((uint16_t)(*(__IO uint8_t *)(EEPROM_BATTERY_MAH_ADDR + 1U)) << 8U));
+       from a stale stored SOC value. Only restore the model-based consumed-charge estimate. */
+    uint16_t saved_mah_q10 = EepromSettings_LoadBatteryConsumedQ10();
 
     battery_soc_pct = 0U;
-
-    if (saved_mah_q10 <= 900U) {
-        mah_consumed_est = (float)saved_mah_q10 / 10.0f;
-    } else {
-        mah_consumed_est = 0.0f;
-    }
+    mah_consumed_model = (float)saved_mah_q10 / 10.0f;
 }
 
-void Battery_Save_State_To_EEPROM(void) {
-    uint16_t mah_q10 = (uint16_t)(mah_consumed_est * 10.0f + 0.5f);
+EepromSettingsStatus_t Battery_Save_State_To_EEPROM(void) {
+    uint16_t mah_q10 = (uint16_t)(mah_consumed_model * 10.0f + 0.5f);
     if (mah_q10 > 900U) {
         mah_q10 = 900U;
     }
 
-    HAL_FLASHEx_DATAEEPROM_Unlock();
-    HAL_FLASHEx_DATAEEPROM_Program(FLASH_TYPEPROGRAMDATA_BYTE, EEPROM_BATTERY_MAH_ADDR, (uint32_t)(mah_q10 & 0xFFU));
-    HAL_FLASHEx_DATAEEPROM_Program(FLASH_TYPEPROGRAMDATA_BYTE, EEPROM_BATTERY_MAH_ADDR + 1U, (uint32_t)((mah_q10 >> 8U) & 0xFFU));
-    HAL_FLASHEx_DATAEEPROM_Lock();
+    return EepromSettings_SaveBatteryConsumedQ10(mah_q10);
+}
+
+static void Battery_Require_Persist(void) {
+    if (Battery_Save_State_To_EEPROM() != EEPROM_SETTINGS_OK) {
+        HALT_WITH_ERROR(ERR_EEPROM_STORAGE);
+    }
 }
 
 void Battery_Reset_Fusion_Consumed(void) {
-    mah_consumed_est = 0.0f;
+    mah_consumed_model = 0.0f;
     last_mah_update_ms = 0;
     battery_was_full_and_charging = 0;
-    Battery_Save_State_To_EEPROM();
+    Battery_Require_Persist();
 }
 
 void Battery_Update_Estimate(uint32_t battery_mv_mV) {
@@ -210,7 +207,7 @@ void Battery_Update_Estimate(uint32_t battery_mv_mV) {
             case STATE_CHARGING:
                 /* Charging voltage is not a trustworthy SOC indicator and can spike
                    above the real battery level while the external supply is present.
-                   Keep the coulomb estimate conservative instead of letting a charger
+                   Keep the consumed-charge estimate conservative instead of letting a charger
                    step the reported SOC directly to 100%. */
                 state_current_ma = 0.0f;
                 break;
@@ -219,9 +216,9 @@ void Battery_Update_Estimate(uint32_t battery_mv_mV) {
                 break;
         }
 
-        mah_consumed_est += state_current_ma * dt_h;
-        if (mah_consumed_est < 0.0f) {
-            mah_consumed_est = 0.0f;
+        mah_consumed_model += state_current_ma * dt_h;
+        if (mah_consumed_model < 0.0f) {
+            mah_consumed_model = 0.0f;
         }
     }
     last_mah_update_ms = now_ms;
@@ -234,7 +231,7 @@ void Battery_Update_Estimate(uint32_t battery_mv_mV) {
         Battery_Reset_Fusion_Consumed();
     }
 
-    Battery_Save_State_To_EEPROM();
+    Battery_Require_Persist();
 }
 
 uint8_t Battery_Get_Fused_SOC(uint32_t mv, int32_t temp_c) {
@@ -245,15 +242,15 @@ uint8_t Battery_Get_Fused_SOC(uint32_t mv, int32_t temp_c) {
         v_soc = BATTERY_FULL_SOH_SOC_PCT;
     }
 
-    float coulomb_soc = 100.0f - ((mah_consumed_est / BATTERY_CAPACITY_MAH) * 100.0f);
-    if (coulomb_soc < 0.0f) {
-        coulomb_soc = 0.0f;
+    float consumed_charge_soc = 100.0f - ((mah_consumed_model / BATTERY_CAPACITY_MAH) * 100.0f);
+    if (consumed_charge_soc < 0.0f) {
+        consumed_charge_soc = 0.0f;
     }
-    if (coulomb_soc > 100.0f) {
-        coulomb_soc = 100.0f;
+    if (consumed_charge_soc > 100.0f) {
+        consumed_charge_soc = 100.0f;
     }
 
-    float fused = (BATTERY_VOLTAGE_SOC_WEIGHT * (float)v_soc) + (BATTERY_COULOMB_SOC_WEIGHT * coulomb_soc);
+    float fused = (BATTERY_VOLTAGE_SOC_WEIGHT * (float)v_soc) + (BATTERY_CONSUMED_SOC_WEIGHT * consumed_charge_soc);
     if (current_state == STATE_CHARGING) {
         /* Charger voltage is usually higher than the real cell voltage, so the
            raw terminal voltage cannot be trusted as a full indicator while USB is present.
@@ -261,11 +258,11 @@ uint8_t Battery_Get_Fused_SOC(uint32_t mv, int32_t temp_c) {
         if (v_soc > BATTERY_CHARGING_SOC_CAP_PCT) {
             v_soc = BATTERY_CHARGING_SOC_CAP_PCT;
         }
-        if (coulomb_soc > BATTERY_CHARGING_SOC_CAP_PCT) {
-            coulomb_soc = BATTERY_CHARGING_SOC_CAP_PCT;
+        if (consumed_charge_soc > BATTERY_CHARGING_SOC_CAP_PCT) {
+            consumed_charge_soc = BATTERY_CHARGING_SOC_CAP_PCT;
         }
-        fused = (BATTERY_VOLTAGE_SOC_WEIGHT * (float)v_soc) + (BATTERY_COULOMB_SOC_WEIGHT * coulomb_soc);
-        if (mv >= BATTERY_FULL_MV && v_soc >= BATTERY_CHARGING_SOC_CAP_PCT && coulomb_soc >= BATTERY_CHARGING_SOC_CAP_PCT) {
+        fused = (BATTERY_VOLTAGE_SOC_WEIGHT * (float)v_soc) + (BATTERY_CONSUMED_SOC_WEIGHT * consumed_charge_soc);
+        if (mv >= BATTERY_FULL_MV && v_soc >= BATTERY_CHARGING_SOC_CAP_PCT && consumed_charge_soc >= BATTERY_CHARGING_SOC_CAP_PCT) {
             fused = 100.0f;
         }
     }

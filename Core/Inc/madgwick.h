@@ -8,7 +8,8 @@
  * At rest    : accel reads [0, 0, -g] m/s^2  (upward reaction force)
  * az_world   : NED-down specific force — at rest ≈ -g m/s^2
  *
- * Parameters from param_init.m, tuned for LSM6DS3 @ 52 Hz.
+ * Production C parameters are in filter_tuning.h; MATLAB development
+ * tuning in param_init.m is separate (52 Hz versus the firmware's 26 Hz).
  */
 #ifndef INC_MADGWICK_H_
 #define INC_MADGWICK_H_

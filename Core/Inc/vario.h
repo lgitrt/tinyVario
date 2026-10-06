@@ -49,7 +49,7 @@ void    Recover_IMU_Bus(void);
 uint8_t Sensors_Safe_Shutdown(void);
 
 // --- Debug counters (watch these in the debugger; they only accumulate, never reset) ---
-extern volatile uint32_t dbg_exti_count;      /* IMU EXTI fires; expected ~52/s */
+extern volatile uint32_t dbg_exti_count;      /* IMU EXTI fires; expected ~26/s */
 extern volatile uint32_t dbg_exti_i2c_busy;   /* I2C not READY when EXTI fires — SPL06 conflict */
 extern volatile uint32_t dbg_dma_fail;        /* LSM6DS3_ReadRaw_DMA returned non-OK */
 extern volatile uint32_t dbg_dma_complete;    /* DMA RX done; should track dbg_exti_count */

@@ -7,6 +7,7 @@
 #define INC_BATTERY_H_
 
 #include "main.h"
+#include "eeprom_settings.h"
 
 // --- Battery protection thresholds (mV) ---
 #define BAT_SHUTDOWN_MV        3200   // hard cutoff — safe margin above cell damage floor
@@ -28,16 +29,15 @@
 #define BATTERY_CHARGING_SOC_CAP_PCT      95   // stay conservative while USB is attached
 #define BATT_SOC_TEMP_COMP_MV_PER_C     8
 #define BATTERY_SAMPLE_QUIESCENT_MS     25u
-#define EEPROM_BATTERY_MAH_ADDR        0x08080000U
 #define BATTERY_FULL_SOH_SOC_PCT          96u
 
-// --- Coulomb counting / fusion tuning ---
+// --- Model-based consumed-charge estimate / voltage fusion tuning ---
 #define BATTERY_CAPACITY_MAH            90.0f
 #define BATTERY_STATE_OFF_CURRENT_MA     0.04f
 #define BATTERY_STATE_ACTIVE_CURRENT_MA  24.0f
 #define BATTERY_STATE_CHARGING_CURRENT_MA -90.0f
 #define BATTERY_VOLTAGE_SOC_WEIGHT       0.70f
-#define BATTERY_COULOMB_SOC_WEIGHT       0.30f
+#define BATTERY_CONSUMED_SOC_WEIGHT      0.30f
 
 // --- SOC LUT entries (voltage in mV, SOC in %). Tune here later with measured data. ---
 #define BATTERY_SOC_LUT_LEN 13u
@@ -75,7 +75,7 @@ uint8_t  Battery_Get_SOC_From_Voltage(uint32_t mv, int32_t temp_c);
 uint8_t  Battery_Get_Fused_SOC(uint32_t mv, int32_t temp_c);
 float    Battery_Get_MAh_Consumed(void);
 void     Battery_Load_State_From_EEPROM(void);
-void     Battery_Save_State_To_EEPROM(void);
+EepromSettingsStatus_t Battery_Save_State_To_EEPROM(void);
 void     Battery_Update_Estimate(uint32_t battery_mv_mV);
 void     Battery_Reset_Fusion_Consumed(void);
 void     Handle_Critical_Battery(void);

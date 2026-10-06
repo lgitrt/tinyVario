@@ -8,7 +8,7 @@
  *   vz       : vertical speed [m/s], up positive
  *   az_bias  : world-frame vertical accel bias [m/s^2]
  *
- * Prediction at every IMU tick (52 Hz):  x' = F*x + B*u,  P' = F*P*F' + Q
+ * Prediction at every firmware IMU tick (26 Hz):  x' = F*x + B*u,  P' = F*P*F' + Q
  * Update when baro_new == 1 (~8 Hz):     Kalman gain + Joseph-form P update
  *
  * Input az_world is the NED-down specific force from Madgwick [m/s^2].

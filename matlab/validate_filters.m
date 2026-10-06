@@ -36,11 +36,11 @@ addpath(fullfile(here, '..', 'Core', 'Src', 'matlab_functions'));
 % NOTE: this is the exploratory tuning used while developing and tuning
 % the filters in Simulink, not the firmware's shipped production tuning
 % (Core/Inc/filter_tuning.h runs the pipeline at 26 Hz with different
-% noise constants). Using param_init.m here keeps this script's results
-% directly comparable to the Simulink-derived plots, since both exercise
-% the same algorithm + the same tuning. Re-tuning the production firmware
-% values for the (currently untested) 26 Hz operating point is tracked as
-% a follow-up, not done here to avoid presenting unverified numbers.
+% noise constants). This script's metrics describe the 52 Hz MATLAB
+% reference model only; they are not performance metrics for the shipped
+% 26 Hz C estimator. Using param_init.m here keeps this script's output
+% comparable to the Simulink development-model plots. A same-input host
+% comparison against the production C estimator remains future work.
 param_init;   % defines `param`, and (via its final line) also runs
               % trajectory_paraglider to generate ground truth + sensors
               % NOTE: param_init.m starts with `clear`, which wipes `here`
@@ -103,7 +103,7 @@ for k = 1:N
 end
 
 %% =========================================================
-%  ERROR METRICS (10 s warm-up excluded, matching firmware ZUPT settle time)
+%  ERROR METRICS (10 s reference-model warm-up excluded)
 % ==========================================================
 ignore_s = round(10 / dt);
 rmse   = @(x) sqrt(mean(x(ignore_s:end).^2));
@@ -116,6 +116,7 @@ altErr_baro    = alt_est_baro - ts_alt.Data;
 vzErr_baro     = vz_est_baro  - ts_vz.Data;
 
 fprintf('\n=== VALIDATION RESULTS (10 s warm-up excluded) ===\n');
+fprintf('Scope: MATLAB reference model; 52 Hz development tuning, not production C\n');
 fprintf('az_world RMSE                        : %.4f m/s^2\n', rmse(az_err));
 fprintf('Altitude RMSE   baro-only KF          : %.4f m\n',     rmse(altErr_baro));
 fprintf('Altitude RMSE   3-state KF + Madgwick : %.4f m\n',     rmse(altErr_kf));
